@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Observation Deck",
+    "year": "2026",
+    "blurb": "你现在看到的这个个人站。Vue 写的单页应用，给项目、博客、小工具都留了舱位。",
+    "href": "/",
+    "tags": ["Vue", "GitHub Pages"],
+    "status": "online"
+  },
+  {
+    "name": "下一个项目",
+    "year": "—",
+    "blurb": "正在构思中。有想法了就把它写在这里。",
+    "href": "",
+    "tags": ["草稿"],
+    "status": "offline"
+  },
+  {
+    "name": "给孩子的小实验",
+    "year": "—",
+    "blurb": "未来会放一些互动的小页面：颜色、数字、简单的物理现象演示。",
+    "href": "",
+    "tags": ["Kids", "预留"],
+    "status": "planning"
+  }
+]
