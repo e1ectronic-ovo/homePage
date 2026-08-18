@@ -8,10 +8,16 @@
   "github": "https://github.com/e1ectronic-ovo",
   "email": "",
   "links": [
-    { "label": "GitHub", "href": "https://github.com/e1ectronic-ovo" }
+    {
+      "label": "GitHub",
+      "href": "https://github.com/e1ectronic-ovo"
+    }
   ],
   "about": {
-    "lead": ["Just Rejoice Journey", "只管欣然，奔赴前路"],
+    "lead": [
+      "Just Rejoice Journey",
+      "只管欣然，奔赴前路"
+    ],
     "body": [
       "我是 Electronic，偶尔写点记录。这个站不追求热闹，安静、清楚，随时能回来翻一翻。",
       "博客里是想法和笔记；Kids 角从孕期胎教开始——朗读、静心、想对宝宝说的话。等孩子长大，这里会慢慢变。"
