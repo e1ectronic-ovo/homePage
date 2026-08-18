@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { renderMarkdown } from '../../composables/useMarkdown'
 
 const props = defineProps({
   kid: { type: Object, required: true },
@@ -13,6 +14,7 @@ watch(stories, () => {
 })
 
 const current = computed(() => stories.value[index.value] ?? { title: '', text: '' })
+const currentHtml = computed(() => renderMarkdown(current.value.text))
 
 function prev() {
   if (!stories.value.length) return
@@ -30,7 +32,7 @@ function next() {
 
     <div v-if="stories.length" class="card panel">
       <p class="card-kicker">{{ current.title }}</p>
-      <p class="card-text">{{ current.text }}</p>
+      <div class="card-body md" v-html="currentHtml"></div>
     </div>
     <div v-else class="empty panel muted">还没有故事，去后台添加吧。</div>
 
@@ -64,14 +66,42 @@ function next() {
   text-transform: uppercase;
   color: var(--ice);
 }
-.card-text {
-  margin: 0;
+.card-body {
   font-family: var(--font-display);
   font-size: clamp(1.05rem, 2.6vw, 1.28rem);
   line-height: 1.85;
   letter-spacing: 0.02em;
+}
+.card-body :deep(p) {
+  margin: 0 0 1.1rem;
   color: rgba(220, 228, 232, 0.92);
-  white-space: pre-line;
+}
+.card-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.card-body :deep(strong) {
+  color: rgba(235, 242, 246, 0.96);
+}
+.card-body :deep(em) {
+  font-style: italic;
+  opacity: 0.92;
+}
+.card-body :deep(ul),
+.card-body :deep(ol) {
+  margin: 0 0 1.1rem;
+  padding-left: 1.35rem;
+}
+.card-body :deep(li) {
+  margin: 0.25rem 0;
+  color: rgba(220, 228, 232, 0.92);
+}
+.card-body :deep(blockquote) {
+  margin: 1.1rem 0;
+  padding: 0.5rem 0.9rem;
+  border-left: 2px solid var(--ice);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(220, 228, 232, 0.88);
+  font-style: italic;
 }
 .nav {
   display: flex;

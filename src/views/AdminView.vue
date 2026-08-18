@@ -167,7 +167,7 @@ function addStory() {
   ensureKidShape(activeKidPreview.value)
   activeKidPreview.value.stories.push({
     title: '新故事',
-    text: '在这里写故事正文……',
+    text: '在这里写故事正文……\n\n支持 **Markdown**。',
   })
 }
 function delStory(i) {
@@ -499,7 +499,7 @@ const dirtyCount = computed(() => posts.value.length + kids.value.length)
                 <span>内容类型</span>
                 <select v-model="activeKidPreview.kind" @change="onKidKindChange">
                   <option value="play">互动页（固定组件，如呼吸练习）</option>
-                  <option value="stories">胎教故事（JSON 故事列表）</option>
+                  <option value="stories">胎教故事（Markdown 故事列表）</option>
                   <option value="letter">给宝宝信（JSON 信件）</option>
                   <option value="content">Markdown 正文</option>
                 </select>
@@ -517,7 +517,15 @@ const dirtyCount = computed(() => posts.value.length + kids.value.length)
                       <input v-model="s.title" placeholder="故事标题" class="fill" />
                       <button class="btn btn-x" @click="delStory(i)" title="删除">×</button>
                     </div>
-                    <textarea v-model="s.text" rows="12" placeholder="故事正文，换行会保留"></textarea>
+                    <div class="editor-field">
+                      <span class="field-label">故事正文</span>
+                      <AdminMarkdownEditor
+                        :key="activeKidPreview.id + '-story-' + i"
+                        :editor-id="'admin-kid-story-' + activeKidPreview.id + '-' + i"
+                        v-model="s.text"
+                        placeholder="在这里写故事正文…"
+                      />
+                    </div>
                   </div>
                   <div v-if="!activeKidPreview.stories.length" class="empty muted">
                     还没有故事，点右上「加故事」。
@@ -1051,11 +1059,6 @@ textarea:focus {
 }
 .story-hd .fill {
   flex: 1;
-}
-.story-item textarea {
-  width: 100%;
-  resize: vertical;
-  min-height: 5rem;
 }
 .empty {
   padding: 1.4rem;
