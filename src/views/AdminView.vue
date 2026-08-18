@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   profile,
@@ -60,6 +60,7 @@ const loginError = ref('')
 onMounted(() => {
   refreshGateStatus()
   tokenInput.value = loadAdminToken()
+  window.addEventListener('keydown', onStoryModalKeydown)
 })
 
 async function doLogin() {
@@ -169,11 +170,43 @@ function addStory() {
     title: '新故事',
     text: '在这里写故事正文……\n\n支持 **Markdown**。',
   })
+  editingStoryIndex.value = activeKidPreview.value.stories.length - 1
 }
 function delStory(i) {
   if (!confirm('删这个故事？')) return
   activeKidPreview.value.stories.splice(i, 1)
+  if (editingStoryIndex.value === i) {
+    editingStoryIndex.value = null
+  } else if (editingStoryIndex.value != null && editingStoryIndex.value > i) {
+    editingStoryIndex.value--
+  }
 }
+const editingStoryIndex = ref(null)
+const editingStory = computed(() => {
+  const kid = activeKidPreview.value
+  const i = editingStoryIndex.value
+  if (!kid || i == null || !kid.stories?.[i]) return null
+  return kid.stories[i]
+})
+function storyExcerpt(text = '', max = 52) {
+  const plain = String(text)
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/[#*_>`[\]()]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!plain) return '（正文为空）'
+  return plain.length > max ? plain.slice(0, max) + '…' : plain
+}
+function openStoryEditor(i) {
+  editingStoryIndex.value = i
+}
+function closeStoryEditor() {
+  editingStoryIndex.value = null
+}
+function onStoryModalKeydown(e) {
+  if (e.key === 'Escape' && editingStoryIndex.value != null) closeStoryEditor()
+}
+onUnmounted(() => window.removeEventListener('keydown', onStoryModalKeydown))
 function addLetterParagraph() {
   ensureKidShape(activeKidPreview.value)
   activeKidPreview.value.letter.paragraphs.push('新段落……')
@@ -204,6 +237,7 @@ function delKid(i) {
 const activeKidPreview = ref(null)
 watch(activeKidPreview, (k) => {
   if (k) ensureKidShape(k)
+  editingStoryIndex.value = null
 })
 watch(
   kids,
@@ -511,20 +545,23 @@ const dirtyCount = computed(() => posts.value.length + kids.value.length)
                   <h3 class="sh">故事列表</h3>
                   <button class="btn btn-ghost btn-sm" @click="addStory">+ 加故事</button>
                 </div>
-                <div class="story-list">
-                  <div v-for="(s, i) in activeKidPreview.stories" :key="i" class="story-item panel">
-                    <div class="story-hd">
-                      <input v-model="s.title" placeholder="故事标题" class="fill" />
-                      <button class="btn btn-x" @click="delStory(i)" title="删除">×</button>
-                    </div>
-                    <div class="editor-field">
-                      <span class="field-label">故事正文</span>
-                      <AdminMarkdownEditor
-                        :key="activeKidPreview.id + '-story-' + i"
-                        :editor-id="'admin-kid-story-' + activeKidPreview.id + '-' + i"
-                        v-model="s.text"
-                        placeholder="在这里写故事正文…"
-                      />
+                <div class="story-list compact">
+                  <div
+                    v-for="(s, i) in activeKidPreview.stories"
+                    :key="i"
+                    class="story-row"
+                    :class="{ active: editingStoryIndex === i }"
+                  >
+                    <button type="button" class="story-row-main" @click="openStoryEditor(i)">
+                      <span class="story-idx">{{ i + 1 }}</span>
+                      <span class="story-row-text">
+                        <strong>{{ s.title || '（未命名）' }}</strong>
+                        <em>{{ storyExcerpt(s.text) }}</em>
+                      </span>
+                    </button>
+                    <div class="story-row-actions">
+                      <button type="button" class="btn btn-ghost btn-sm" @click="openStoryEditor(i)">编辑</button>
+                      <button type="button" class="btn btn-x" @click="delStory(i)" title="删除">×</button>
                     </div>
                   </div>
                   <div v-if="!activeKidPreview.stories.length" class="empty muted">
@@ -598,6 +635,38 @@ const dirtyCount = computed(() => posts.value.length + kids.value.length)
         </section>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="editingStory"
+        class="story-modal-backdrop"
+        @click.self="closeStoryEditor"
+      >
+        <div class="story-modal panel" role="dialog" aria-modal="true" aria-labelledby="story-modal-title">
+          <div class="story-modal-hd row-between">
+            <h3 id="story-modal-title" class="sh">编辑故事</h3>
+            <button type="button" class="btn btn-x" @click="closeStoryEditor" title="关闭">×</button>
+          </div>
+          <div class="story-modal-bd">
+            <label><span>标题</span>
+              <input v-model="editingStory.title" placeholder="故事标题" />
+            </label>
+            <div class="editor-field">
+              <span class="field-label">故事正文</span>
+              <AdminMarkdownEditor
+                :key="activeKidPreview?.id + '-story-' + editingStoryIndex"
+                :editor-id="'admin-kid-story-' + activeKidPreview?.id + '-' + editingStoryIndex"
+                v-model="editingStory.text"
+                placeholder="在这里写故事正文…"
+              />
+            </div>
+          </div>
+          <div class="story-modal-ft">
+            <button type="button" class="btn btn-primary" @click="closeStoryEditor">完成</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -1047,18 +1116,105 @@ textarea:focus {
   display: grid;
   gap: 0.75rem;
 }
-.story-item {
+.story-list.compact {
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 2px);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.01);
+}
+.story-row {
   display: grid;
+  grid-template-columns: 1fr auto;
   gap: 0.6rem;
-  padding: 0.85rem;
-}
-.story-hd {
-  display: flex;
-  gap: 0.5rem;
   align-items: center;
+  padding: 0.7rem 0.8rem;
+  border-bottom: 1px solid var(--line);
 }
-.story-hd .fill {
-  flex: 1;
+.story-row:last-child { border-bottom: none; }
+.story-row:hover { background: rgba(255, 255, 255, 0.025); }
+.story-row.active { background: rgba(127, 190, 210, 0.08); }
+.story-row-main {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.story-idx {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  opacity: 0.45;
+  padding-top: 0.15rem;
+  flex-shrink: 0;
+}
+.story-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.story-row-text strong {
+  font-size: 0.92rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.story-row-text em {
+  font-style: normal;
+  font-size: 0.8rem;
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.story-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.story-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(4, 8, 12, 0.72);
+  backdrop-filter: blur(4px);
+}
+.story-modal {
+  width: min(920px, 100%);
+  max-height: min(92vh, 900px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+}
+.story-modal-hd {
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+.story-modal-bd {
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.85rem;
+  overflow: auto;
+  min-height: 0;
+}
+.story-modal-ft {
+  padding: 0.85rem 1.1rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
 }
 .empty {
   padding: 1.4rem;
