@@ -7,7 +7,7 @@ import vue from '@vitejs/plugin-vue'
 const root = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
-  base: '/',
+  base: '/homePage/',
   server: {
     port: 5678,
     strictPort: true,
