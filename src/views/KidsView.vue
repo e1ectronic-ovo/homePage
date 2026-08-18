@@ -11,13 +11,9 @@ const statusMap = {
 
 <template>
   <section class="view-frame">
-    <p class="kicker"><span>05</span> Kids</p>
+    <p class="kicker"><span>03</span> Kids</p>
     <div class="intro">
-      <h1>给孩子留的小角落。</h1>
-      <p>
-        颜色、数字、简单的世界——希望有一天他能在这里点来点去，慢慢认识一些东西。
-        目前大多在准备中，内容会慢慢补。
-      </p>
+      <h1>从胎教开始。</h1>
     </div>
 
     <div class="bento">
@@ -30,7 +26,7 @@ const statusMap = {
         :to="item.status === 'online' ? `/kids/${item.id}` : undefined"
       >
         <header>
-          <span class="age-tag">Age {{ item.age }}</span>
+          <span class="age-tag">{{ item.age }}</span>
           <span class="state" :class="statusMap[item.status]?.cls">
             {{ statusMap[item.status]?.label || item.status }}
           </span>
@@ -139,6 +135,15 @@ h2 {
   .intro,
   .bento {
     grid-template-columns: 1fr;
+  }
+
+  .cell {
+    min-height: auto;
+    padding: 1.1rem 1.15rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
   }
 }
 </style>

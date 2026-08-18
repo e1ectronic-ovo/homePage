@@ -162,4 +162,16 @@ h1 {
 .empty p {
   margin: 0 0 1rem;
 }
+
+@media (max-width: 720px) {
+  h1 {
+    max-width: none;
+    font-size: clamp(1.65rem, 7vw, 2.4rem);
+  }
+
+  .body {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+}
 </style>

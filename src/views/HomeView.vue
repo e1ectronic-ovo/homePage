@@ -7,19 +7,22 @@ const decoded = useDecode(() => profile.value.callsign)
 
 const gates = [
   { code: '01', label: 'About', to: '/about' },
-  { code: '02', label: 'Projects', to: '/projects' },
-  { code: '03', label: 'Tools', to: '/tools' },
-  { code: '04', label: 'Blog', to: '/blog' },
-  { code: '05', label: 'Kids', to: '/kids' },
+  { code: '02', label: 'Blog', to: '/blog' },
+  { code: '03', label: 'Kids', to: '/kids' },
 ]
 </script>
 
 <template>
   <section class="view-frame home">
     <p class="kicker"><span>{{ profile.station }}</span> Personal site</p>
-    <h1 class="callsign">{{ decoded }}</h1>
+    <div class="callsign-wrap">
+      <span class="callsign-ghost" aria-hidden="true">{{ profile.callsign }}</span>
+      <h1 class="callsign">{{ decoded }}</h1>
+    </div>
     <p class="role">{{ profile.role }}</p>
-    <p class="tagline">{{ profile.tagline }}</p>
+    <p class="tagline-wrap">
+      <span class="tagline">{{ profile.tagline }}</span>
+    </p>
 
     <nav class="gates" aria-label="站点入口">
       <RouterLink v-for="item in gates" :key="item.to" :to="item.to" class="gate">
@@ -42,19 +45,48 @@ const gates = [
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 100%;
-  max-height: 100%;
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
   padding-block: 0.4rem;
 }
 
-.callsign {
+@media (min-width: 721px) {
+  .home {
+    min-height: 100%;
+  }
+}
+
+.callsign-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
   margin: 0 0 1.1rem;
-  font-family: var(--font-display);
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.callsign,
+.callsign-ghost {
+  margin: 0;
+  font-family: var(--font-home-display);
   font-size: clamp(2.6rem, 8vw, 6.4rem);
   font-weight: 800;
   letter-spacing: 0.02em;
   line-height: 0.92;
+  white-space: nowrap;
+}
+
+.callsign-ghost {
+  display: block;
+  visibility: hidden;
+  user-select: none;
+  pointer-events: none;
+}
+
+.callsign {
+  position: absolute;
+  inset: 0 auto auto 0;
   color: var(--mist);
 }
 
@@ -67,13 +99,19 @@ const gates = [
   color: var(--ice);
 }
 
-.tagline {
+.tagline-wrap {
+  width: 100%;
+  max-width: 100%;
   margin: 0 0 2.2rem;
-  max-width: 28ch;
+}
+
+.tagline {
+  display: block;
   font-size: clamp(1.05rem, 2vw, 1.28rem);
   font-weight: 300;
   line-height: 1.5;
   color: var(--mist);
+  white-space: nowrap;
 }
 
 .gates {
@@ -133,12 +171,45 @@ const gates = [
 }
 
 @media (max-width: 720px) {
-  .callsign {
-    font-size: clamp(2.2rem, 12vw, 3.2rem);
+  .home {
+    justify-content: flex-start;
+    min-height: auto;
+    overflow: visible;
+    padding-block: clamp(1rem, 4vh, 2rem) 1.5rem;
+  }
+
+  .callsign,
+  .callsign-ghost {
+    font-size: clamp(1.05rem, calc((100vw - 4rem) / 8.5), 2.15rem);
+    letter-spacing: -0.02em;
+  }
+
+  .tagline-wrap {
+    margin-bottom: 1.5rem;
   }
 
   .tagline {
-    margin-bottom: 1.5rem;
+    font-size: clamp(0.66rem, calc((100vw - 4rem) / 22), 0.88rem);
+  }
+
+  .gates {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .gate {
+    min-height: var(--touch);
+    padding: 0.45rem 0;
+    font-size: 1rem;
+    opacity: 0.85;
+  }
+
+  .ext {
+    min-height: var(--touch);
+    display: inline-flex;
+    align-items: center;
   }
 }
 </style>

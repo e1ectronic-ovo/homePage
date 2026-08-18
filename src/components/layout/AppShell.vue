@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router'
 import HudNav from './HudNav.vue'
 import Starfield from './Starfield.vue'
 import StatusBar from './StatusBar.vue'
+import SiteCursor from './SiteCursor.vue'
 
 const route = useRoute()
 </script>
@@ -13,7 +14,7 @@ const route = useRoute()
     <div class="grid" aria-hidden="true" />
     <div class="vignette" aria-hidden="true" />
 
-    <div class="window">
+    <div class="window readable">
       <a class="skip" href="#main">Skip to content</a>
       <span class="tick tick-tl" aria-hidden="true" />
       <span class="tick tick-tr" aria-hidden="true" />
@@ -32,6 +33,8 @@ const route = useRoute()
 
       <StatusBar />
     </div>
+
+    <SiteCursor />
   </div>
 </template>
 
@@ -70,7 +73,7 @@ const route = useRoute()
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 38%, rgba(6, 8, 10, 0.42) 100%);
+  background: radial-gradient(ellipse at center, transparent 24%, rgba(6, 8, 10, 0.62) 100%);
 }
 
 .window {
@@ -80,7 +83,25 @@ const route = useRoute()
   grid-template-rows: auto 1fr auto;
   min-height: 100dvh;
   height: 100%;
-  padding: var(--frame) clamp(1rem, 4vw, 2.75rem);
+  padding:
+    calc(var(--frame) + var(--safe-top))
+    max(clamp(1rem, 4vw, 2.75rem), var(--safe-right))
+    calc(var(--frame) + var(--safe-bottom))
+    max(clamp(1rem, 4vw, 2.75rem), var(--safe-left));
+}
+
+.window::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(7, 9, 13, 0.58) 0%,
+    rgba(7, 9, 13, 0.22) 42%,
+    rgba(7, 9, 13, 0.48) 100%
+  );
 }
 
 .is-home .window {
@@ -145,6 +166,9 @@ const route = useRoute()
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .is-home .viewport {
@@ -173,5 +197,42 @@ const route = useRoute()
 .view-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+@media (max-width: 720px) {
+  .tick {
+    width: 10px;
+    height: 10px;
+    opacity: 0.35;
+  }
+
+  .shell,
+  .shell.is-home {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .window,
+  .is-home .window {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: auto;
+  }
+
+  .viewport,
+  .is-home .viewport {
+    display: block;
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  .viewport :deep(.view-frame) {
+    flex: none;
+  }
 }
 </style>

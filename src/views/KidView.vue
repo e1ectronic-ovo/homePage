@@ -1,12 +1,43 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, defineAsyncComponent, shallowRef, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { getKid } from '../composables/useData'
 import { renderMarkdown } from '../composables/useMarkdown'
+import { hasKidModule, kidModules } from '../components/kids/registry'
 
 const route = useRoute()
 const kid = computed(() => getKid(route.params.id))
 const html = computed(() => renderMarkdown(kid.value?.content))
+const kidModule = shallowRef(null)
+
+watch(
+  kid,
+  async (item) => {
+    if (!item || item.status !== 'online') {
+      kidModule.value = null
+      return
+    }
+    let loader = null
+    if (item.kind === 'stories' || Array.isArray(item.stories)) {
+      loader = kidModules.stories
+    } else if (item.kind === 'letter' || item.letter) {
+      loader = kidModules['first-letter']
+    } else if (hasKidModule(item.id)) {
+      loader = kidModules[item.id]
+    }
+    if (!loader) {
+      kidModule.value = null
+      return
+    }
+    try {
+      const mod = await loader()
+      kidModule.value = mod.default
+    } catch {
+      kidModule.value = null
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -15,11 +46,13 @@ const html = computed(() => renderMarkdown(kid.value?.content))
 
     <article v-if="kid">
       <header class="hd">
-        <p class="kicker"><span>Age {{ kid.age }}</span> Kids</p>
+        <p class="kicker"><span>{{ kid.age }}</span> Kids</p>
         <h1>{{ kid.title }}</h1>
+        <p v-if="kid.blurb" class="lead">{{ kid.blurb }}</p>
       </header>
 
-      <div class="body md" v-html="html"></div>
+      <component v-if="kidModule" :is="kidModule" :kid="kid" class="kid-stage" />
+      <div v-else class="body md" v-html="html"></div>
     </article>
 
     <div v-else class="empty panel">
@@ -46,8 +79,8 @@ const html = computed(() => renderMarkdown(kid.value?.content))
   border-bottom-color: var(--ice);
 }
 .hd {
-  margin-bottom: 2rem;
-  padding-bottom: 1.4rem;
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.2rem;
   border-bottom: 1px solid var(--line);
 }
 h1 {
@@ -57,6 +90,16 @@ h1 {
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
+}
+.lead {
+  margin: 0.75rem 0 0;
+  max-width: 42ch;
+  font-size: 1rem;
+  line-height: 1.65;
+  opacity: 0.78;
+}
+.kid-stage {
+  max-width: 36rem;
 }
 .body {
   max-width: 68ch;
@@ -98,5 +141,19 @@ h1 {
 }
 .empty p {
   margin: 0 0 1rem;
+}
+
+@media (max-width: 720px) {
+  h1 {
+    font-size: clamp(1.65rem, 7vw, 2.2rem);
+  }
+
+  .body {
+    font-size: 1rem;
+  }
+
+  .kid-stage {
+    max-width: none;
+  }
 }
 </style>

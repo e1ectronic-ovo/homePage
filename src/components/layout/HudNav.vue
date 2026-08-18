@@ -11,8 +11,6 @@ const items = [
   { to: '/', label: 'Home', match: 'exact' },
   { to: '/about', label: 'About', match: 'exact' },
   { to: '/blog', label: 'Blog', match: 'prefix' },
-  { to: '/projects', label: 'Projects', match: 'exact' },
-  { to: '/tools', label: 'Tools', match: 'prefix' },
   { to: '/kids', label: 'Kids', match: 'prefix' },
 ]
 
@@ -185,14 +183,34 @@ const station = computed(() => profile.value.station)
     flex-direction: column;
     align-items: stretch;
     gap: 0.65rem;
+    padding-top: 0.2rem;
+  }
+
+  .brand-name {
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
   }
 
   .nav-list {
     overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    margin: 0 -0.25rem;
+    padding: 0 0.25rem 2px;
+  }
+
+  .nav-list::-webkit-scrollbar {
+    display: none;
   }
 
   .nav-link {
-    padding-inline: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    min-height: var(--touch);
+    display: flex;
+    align-items: center;
+    scroll-snap-align: start;
+    letter-spacing: 0.12em;
   }
 }
 </style>

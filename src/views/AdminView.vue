@@ -1,49 +1,75 @@
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   profile,
-  projects,
-  tools,
   posts,
   kids,
   getAllData,
 } from '../composables/useData'
 import {
-  saveAdminConfig,
-  loadAdminConfig,
-  clearAdminConfig,
+  saveAdminToken,
+  loadAdminToken,
+  clearAdminToken,
   verifyAccess,
   writeFiles,
+  getRepoConfig,
+  buildGithubConfig,
 } from '../composables/useGithub'
+import AdminMarkdownEditor from '../components/admin/AdminMarkdownEditor.vue'
+import {
+  isGateOpen,
+  verifyGatePassword,
+  getGateStatus,
+} from '../composables/useAdminGate'
 
-/* ---------- 登录状态 ---------- */
+const repoConfig = getRepoConfig()
+
+/* ---------- 入口密码门禁 ---------- */
+const gateOpen = ref(isGateOpen())
+const gatePassword = ref('')
+const gateLoading = ref(false)
+const gateError = ref('')
+const gateStatus = ref(getGateStatus())
+
+function refreshGateStatus() {
+  gateStatus.value = getGateStatus()
+}
+
+async function doGateUnlock() {
+  gateLoading.value = true
+  gateError.value = ''
+  try {
+    await verifyGatePassword(gatePassword.value)
+    gateOpen.value = true
+    gatePassword.value = ''
+  } catch (e) {
+    gateError.value = e.message || '验证失败'
+    refreshGateStatus()
+  } finally {
+    gateLoading.value = false
+  }
+}
+
+/* ---------- GitHub Token 登录 ---------- */
 const loggedIn = ref(false)
-const loginForm = reactive({
-  token: '',
-  owner: '',
-  repo: '',
-  branch: 'main',
-  apiBase: '',
-})
+const tokenInput = ref('')
 const loginLoading = ref(false)
 const loginError = ref('')
 
 onMounted(() => {
-  const saved = loadAdminConfig()
-  if (saved) {
-    Object.assign(loginForm, saved)
-  }
+  refreshGateStatus()
+  tokenInput.value = loadAdminToken()
 })
 
 async function doLogin() {
   loginLoading.value = true
   loginError.value = ''
   try {
-    if (!loginForm.token) throw new Error('Token 不能空')
-    if (!loginForm.owner || !loginForm.repo) throw new Error('Owner 和 Repo 都要填')
-    await verifyAccess(loginForm)
-    saveAdminConfig({ ...loginForm })
+    if (!tokenInput.value) throw new Error('Token 不能空')
+    const cfg = buildGithubConfig(tokenInput.value)
+    await verifyAccess(cfg)
+    saveAdminToken(tokenInput.value)
     loggedIn.value = true
   } catch (e) {
     loginError.value = e.message || '验证失败'
@@ -52,9 +78,10 @@ async function doLogin() {
   }
 }
 function doLogout() {
-  clearAdminConfig()
+  clearAdminToken()
   loggedIn.value = false
   loginError.value = ''
+  tokenInput.value = ''
 }
 
 /* ---------- 选中的模块 tab ---------- */
@@ -62,21 +89,13 @@ const activeTab = ref('profile')
 
 const TABS = [
   { key: 'profile', label: '个人信息', icon: '◉' },
-  { key: 'projects', label: '项目列表', icon: '▣' },
-  { key: 'tools', label: '工具列表', icon: '◎' },
   { key: 'posts', label: '博客文章', icon: '✎' },
   { key: 'kids', label: 'Kids 内容', icon: '❀' },
   { key: 'deploy', label: '提交 & 发布', icon: '⇧' },
 ]
 
 /* ---------- Profile 编辑 ---------- */
-// profile 是 ref object，直接双向绑定其字段。focus/links 数组用临时引用即可。
-function addFocus() {
-  profile.value.about.focus.push({ code: 'NEW', label: '新标签', note: '描述一下' })
-}
-function delFocus(i) {
-  profile.value.about.focus.splice(i, 1)
-}
+// profile 是 ref object，直接双向绑定其字段。
 function addLink() {
   profile.value.links.push({ label: '链接名', href: 'https://' })
 }
@@ -88,45 +107,6 @@ function addBody() {
 }
 function delBody(i) {
   profile.value.about.body.splice(i, 1)
-}
-
-/* ---------- Projects CRUD ---------- */
-function addProject() {
-  projects.value.unshift({
-    name: '新项目',
-    year: String(new Date().getFullYear()),
-    blurb: '一句话介绍这个项目。',
-    href: '',
-    tags: [],
-    status: 'planning',
-  })
-}
-function delProject(i) {
-  if (!confirm('删这个项目？')) return
-  projects.value.splice(i, 1)
-}
-function addProjectTag(p) {
-  p.tags = p.tags || []
-  p.tags.push('新标签')
-}
-function delProjectTag(p, i) {
-  p.tags.splice(i, 1)
-}
-
-/* ---------- Tools CRUD ---------- */
-function addTool() {
-  tools.value.unshift({
-    id: 'tool-' + Math.random().toString(36).slice(2, 7),
-    name: '新工具',
-    status: 'offline',
-    blurb: '一句话介绍这个工具。',
-    span: 'narrow',
-    component: null,
-  })
-}
-function delTool(i) {
-  if (!confirm('删这个工具？')) return
-  tools.value.splice(i, 1)
 }
 
 /* ---------- Posts CRUD ---------- */
@@ -168,22 +148,63 @@ watch(
 )
 
 /* ---------- Kids CRUD ---------- */
+function kidKind(k) {
+  if (!k) return 'content'
+  if (k.kind === 'stories' || Array.isArray(k.stories)) return 'stories'
+  if (k.kind === 'letter' || k.letter) return 'letter'
+  if (k.kind === 'play') return 'play'
+  return 'content'
+}
+function ensureKidShape(k) {
+  if (!k) return
+  if (kidKind(k) === 'stories' && !Array.isArray(k.stories)) k.stories = []
+  if (kidKind(k) === 'letter') {
+    if (!k.letter) k.letter = { salute: '', paragraphs: [], sign: '' }
+    if (!Array.isArray(k.letter.paragraphs)) k.letter.paragraphs = []
+  }
+}
+function addStory() {
+  ensureKidShape(activeKidPreview.value)
+  activeKidPreview.value.stories.push({
+    title: '新故事',
+    text: '在这里写故事正文……',
+  })
+}
+function delStory(i) {
+  if (!confirm('删这个故事？')) return
+  activeKidPreview.value.stories.splice(i, 1)
+}
+function addLetterParagraph() {
+  ensureKidShape(activeKidPreview.value)
+  activeKidPreview.value.letter.paragraphs.push('新段落……')
+}
+function delLetterParagraph(i) {
+  activeKidPreview.value.letter.paragraphs.splice(i, 1)
+}
+function onKidKindChange() {
+  ensureKidShape(activeKidPreview.value)
+}
 function addKid() {
   kids.value.unshift({
     id: 'kid-' + Math.random().toString(36).slice(2, 7),
+    kind: 'content',
     title: '新内容',
-    age: '3-5',
+    age: '胎教',
     status: 'planning',
-    blurb: '一句话介绍这份 Kids 内容。',
-    content: '# 新内容\n\n给孩子看的东西写在这里。',
+    blurb: '一句话介绍这份胎教内容。',
+    content: '',
   })
   activeKidPreview.value = kids.value[0]
+  ensureKidShape(activeKidPreview.value)
 }
 function delKid(i) {
   if (!confirm('删这份 Kids 内容？')) return
   kids.value.splice(i, 1)
 }
 const activeKidPreview = ref(null)
+watch(activeKidPreview, (k) => {
+  if (k) ensureKidShape(k)
+})
 watch(
   kids,
   (list) => {
@@ -197,7 +218,6 @@ watch(
 )
 
 /* ---------- 提交发布 ---------- */
-import { renderMarkdown } from '../composables/useMarkdown'
 const deployMsg = ref('chore(content): update site')
 const deploying = ref(false)
 const deployLog = ref('')
@@ -211,7 +231,7 @@ async function doDeploy() {
   try {
     const files = getAllData()
     deployLog.value += `共 ${Object.keys(files).length} 个文件待写入。\n`
-    await writeFiles(loginForm, files, deployMsg.value || 'chore(content): update site')
+    await writeFiles(buildGithubConfig(), files, deployMsg.value || 'chore(content): update site')
     deployLog.value += '全部写入成功！GitHub Actions 应该已经开始构建了。\n'
     deployLog.value += `构建通常需要 1-3 分钟，完成后刷新前台页面就能看到最新内容。\n`
   } catch (e) {
@@ -222,16 +242,7 @@ async function doDeploy() {
   }
 }
 
-const dirtyCount = computed(() => {
-  // 简单统计一下：没法和 import 进来的 JSON 原数据比（Vite import 可能会被优化），
-  // 所以给一个"当前条目的总计数"提示即可。
-  return (
-    projects.value.length +
-    tools.value.length +
-    posts.value.length +
-    kids.value.length
-  )
-})
+const dirtyCount = computed(() => posts.value.length + kids.value.length)
 </script>
 
 <template>
@@ -247,43 +258,60 @@ const dirtyCount = computed(() => {
       </div>
     </div>
 
-    <!-- 登录面板 -->
-    <div v-if="!loggedIn" class="login-wrap">
+    <!-- 入口密码 -->
+    <div v-if="!gateOpen" class="login-wrap">
+      <div class="panel login">
+        <h2>访问验证</h2>
+        <p class="hint">
+          管理控制台仅限本人使用。输入访问密码后继续；连续输错 5 次将锁定 30 分钟。
+        </p>
+        <label>
+          <span>访问密码</span>
+          <input
+            v-model="gatePassword"
+            type="password"
+            placeholder="输入密码"
+            autocomplete="off"
+            :disabled="gateStatus.locked || gateLoading"
+            @keyup.enter="doGateUnlock"
+          />
+        </label>
+        <p v-if="gateStatus.locked" class="error">
+          已锁定，请 {{ Math.ceil(gateStatus.waitMs / 60000) }} 分钟后再试。
+        </p>
+        <p v-else-if="gateStatus.attempts > 0" class="warn">
+          已失败 {{ gateStatus.attempts }} 次，还可尝试 {{ gateStatus.remaining }} 次。
+        </p>
+        <p v-if="gateError" class="error">{{ gateError }}</p>
+        <button
+          class="btn btn-primary"
+          :disabled="gateLoading || gateStatus.locked || !gatePassword"
+          @click="doGateUnlock"
+        >
+          {{ gateLoading ? '验证中…' : '进入' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Token 登录 -->
+    <div v-else-if="!loggedIn" class="login-wrap">
       <div class="panel login">
         <h2>接入 GitHub 仓库</h2>
         <p class="hint">
-          填下面 4 项就可以直接在网页上改内容，保存后会自动提交到仓库并触发 Pages 重新部署。
+          仓库已固定为
+          <code>{{ repoConfig.owner }}/{{ repoConfig.repo }}@{{ repoConfig.branch }}</code>。
+          填入 Personal Access Token 即可在网页上改内容并自动触发 Pages 重新部署。
           Token 只存在你自己浏览器的 localStorage，不会上传到任何地方。
         </p>
         <label>
           <span>Personal Access Token</span>
           <input
-            v-model="loginForm.token"
+            v-model="tokenInput"
             type="password"
             placeholder="ghp_xxxxxxxxxxxx（需要 Contents 读写权限）"
             autocomplete="off"
           />
         </label>
-        <div class="row2">
-          <label>
-            <span>Owner（用户名或组织）</span>
-            <input v-model="loginForm.owner" type="text" placeholder="e1ectronic-ovo" />
-          </label>
-          <label>
-            <span>Repo</span>
-            <input v-model="loginForm.repo" type="text" placeholder="electronic.github.io" />
-          </label>
-        </div>
-        <div class="row2">
-          <label>
-            <span>分支</span>
-            <input v-model="loginForm.branch" type="text" placeholder="main" />
-          </label>
-          <label>
-            <span>API Base（留空 = github.com）</span>
-            <input v-model="loginForm.apiBase" type="text" placeholder="https://api.github.com" />
-          </label>
-        </div>
         <p v-if="loginError" class="error">{{ loginError }}</p>
         <button class="btn btn-primary" :disabled="loginLoading" @click="doLogin">
           {{ loginLoading ? '验证中…' : '验证并进入' }}
@@ -334,7 +362,10 @@ const dirtyCount = computed(() => {
           </div>
 
           <h3 class="sh">关于页 · 开头一句话</h3>
-          <textarea v-model="profile.about.lead" rows="2" class="wide-ta"></textarea>
+          <div class="lead-edit">
+            <label><span>第一行（英文）</span><input v-model="profile.about.lead[0]" /></label>
+            <label><span>第二行（中文）</span><input v-model="profile.about.lead[1]" /></label>
+          </div>
 
           <h3 class="sh">关于页 · 正文段落</h3>
           <div class="array-list">
@@ -345,17 +376,6 @@ const dirtyCount = computed(() => {
           </div>
           <button class="btn btn-ghost" @click="addBody">+ 加一段</button>
 
-          <h3 class="sh">关于页 · 专注标签</h3>
-          <div class="array-list">
-            <div v-for="(f, i) in profile.about.focus" :key="i" class="array-item focus-row">
-              <input v-model="f.code" placeholder="CODE" class="w-code" />
-              <input v-model="f.label" placeholder="名称" class="w-label" />
-              <input v-model="f.note" placeholder="一句话说明" />
-              <button class="btn btn-x" @click="delFocus(i)" title="删除">×</button>
-            </div>
-          </div>
-          <button class="btn btn-ghost" @click="addFocus">+ 加一个</button>
-
           <h3 class="sh">关于页 · 外部链接</h3>
           <div class="array-list">
             <div v-for="(l, i) in profile.links" :key="i" class="array-item">
@@ -365,73 +385,6 @@ const dirtyCount = computed(() => {
             </div>
           </div>
           <button class="btn btn-ghost" @click="addLink">+ 加一个</button>
-        </section>
-
-        <!-- Projects -->
-        <section v-if="activeTab === 'projects'" class="tab-panel">
-          <div class="panel-hd row-between">
-            <div>
-              <h2>项目列表</h2>
-              <p class="muted">共 {{ projects.length }} 条。</p>
-            </div>
-            <button class="btn btn-primary" @click="addProject">+ 新项目</button>
-          </div>
-          <div class="cards">
-            <div v-for="(p, i) in projects" :key="i" class="card2">
-              <div class="card2-hd">
-                <input v-model="p.name" placeholder="项目名" class="fill" />
-                <button class="btn btn-x" @click="delProject(i)" title="删除">×</button>
-              </div>
-              <div class="row3">
-                <input v-model="p.year" placeholder="年份" class="w-sm" />
-                <select v-model="p.status" class="w-md">
-                  <option value="online">在线</option>
-                  <option value="planning">计划中</option>
-                  <option value="offline">未上线</option>
-                </select>
-                <input v-model="p.href" placeholder="链接（空则不可点）" />
-              </div>
-              <textarea v-model="p.blurb" rows="2" placeholder="一句话介绍"></textarea>
-              <div class="tags-row">
-                <span class="chip" v-for="(t, ti) in p.tags" :key="ti">
-                  <input v-model="p.tags[ti]" />
-                  <button class="btn btn-x" @click="delProjectTag(p, ti)" title="移除">×</button>
-                </span>
-                <button class="btn btn-ghost btn-sm" @click="addProjectTag(p)">+ 标签</button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Tools -->
-        <section v-if="activeTab === 'tools'" class="tab-panel">
-          <div class="panel-hd row-between">
-            <div>
-              <h2>工具列表</h2>
-              <p class="muted">共 {{ tools.length }} 条。只有 status=在线 + 有组件挂载时才能真正进入。</p>
-            </div>
-            <button class="btn btn-primary" @click="addTool">+ 新工具</button>
-          </div>
-          <div class="cards">
-            <div v-for="(t, i) in tools" :key="i" class="card2">
-              <div class="card2-hd">
-                <input v-model="t.id" placeholder="id（URL 用，不改已有）" class="w-md mono" />
-                <input v-model="t.name" placeholder="工具名" class="fill" />
-                <button class="btn btn-x" @click="delTool(i)" title="删除">×</button>
-              </div>
-              <div class="row3">
-                <select v-model="t.status" class="w-md">
-                  <option value="online">在线</option>
-                  <option value="offline">未上线</option>
-                </select>
-                <select v-model="t.span" class="w-md">
-                  <option value="wide">宽（大卡片左列跨两行）</option>
-                  <option value="narrow">窄（小卡片）</option>
-                </select>
-              </div>
-              <textarea v-model="t.blurb" rows="2" placeholder="一句话介绍"></textarea>
-            </div>
-          </div>
         </section>
 
         <!-- Posts -->
@@ -481,13 +434,15 @@ const dirtyCount = computed(() => {
                 </span>
                 <button class="btn btn-ghost btn-sm" @click="addPostTag(activePostPreview)">+ 标签</button>
               </div>
-              <label><span>正文（Markdown）</span>
-                <textarea v-model="activePostPreview.content" rows="14" class="mono md-ta"></textarea>
-              </label>
-              <details class="preview">
-                <summary>预览渲染结果</summary>
-                <div class="md-preview md" v-html="renderMarkdown(activePostPreview.content)"></div>
-              </details>
+              <div class="editor-field">
+                <span class="field-label">正文（Markdown）</span>
+                <AdminMarkdownEditor
+                  :key="activePostPreview.id"
+                  editor-id="admin-post-md"
+                  v-model="activePostPreview.content"
+                  placeholder="在这里写正文…"
+                />
+              </div>
             </div>
             <div v-else class="split-edit empty muted">选左边一篇来编辑。</div>
           </div>
@@ -498,7 +453,7 @@ const dirtyCount = computed(() => {
           <div class="panel-hd row-between">
             <div>
               <h2>Kids 内容</h2>
-              <p class="muted">共 {{ kids.length }} 份。留给孩子未来看的互动/学习内容占位。</p>
+              <p class="muted">共 {{ kids.length }} 份。孕期朗读、静心，或给宝宝的信。</p>
             </div>
             <button class="btn btn-primary" @click="addKid">+ 新内容</button>
           </div>
@@ -516,7 +471,7 @@ const dirtyCount = computed(() => {
                   <em>{{ k.blurb || '(没介绍)' }}</em>
                 </div>
                 <div class="lr-side">
-                  <span class="date">Age {{ k.age }}</span>
+                  <span class="date">{{ k.age }}</span>
                   <button class="btn btn-x" @click.stop="delKid(i)" title="删除">×</button>
                 </div>
               </div>
@@ -528,7 +483,7 @@ const dirtyCount = computed(() => {
               </label>
               <div class="row3">
                 <label class="grow"><span>标题</span><input v-model="activeKidPreview.title" /></label>
-                <label class="w-md"><span>适用年龄</span><input v-model="activeKidPreview.age" placeholder="3-5" /></label>
+                <label class="w-md"><span>阶段</span><input v-model="activeKidPreview.age" placeholder="胎教" /></label>
                 <label class="w-md"><span>状态</span>
                   <select v-model="activeKidPreview.status">
                     <option value="online">在线</option>
@@ -540,13 +495,60 @@ const dirtyCount = computed(() => {
               <label><span>一句话介绍</span>
                 <textarea v-model="activeKidPreview.blurb" rows="2"></textarea>
               </label>
-              <label><span>正文（Markdown，未来可替换成交互组件）</span>
-                <textarea v-model="activeKidPreview.content" rows="14" class="mono md-ta"></textarea>
+              <label>
+                <span>内容类型</span>
+                <select v-model="activeKidPreview.kind" @change="onKidKindChange">
+                  <option value="play">互动页（固定组件，如呼吸练习）</option>
+                  <option value="stories">胎教故事（JSON 故事列表）</option>
+                  <option value="letter">给宝宝信（JSON 信件）</option>
+                  <option value="content">Markdown 正文</option>
+                </select>
               </label>
-              <details class="preview">
-                <summary>预览渲染结果</summary>
-                <div class="md-preview md" v-html="renderMarkdown(activeKidPreview.content)"></div>
-              </details>
+
+              <!-- 胎教故事 -->
+              <template v-if="kidKind(activeKidPreview) === 'stories'">
+                <div class="panel-hd row-between">
+                  <h3 class="sh">故事列表</h3>
+                  <button class="btn btn-ghost btn-sm" @click="addStory">+ 加故事</button>
+                </div>
+                <div class="story-list">
+                  <div v-for="(s, i) in activeKidPreview.stories" :key="i" class="story-item panel">
+                    <div class="story-hd">
+                      <input v-model="s.title" placeholder="故事标题" class="fill" />
+                      <button class="btn btn-x" @click="delStory(i)" title="删除">×</button>
+                    </div>
+                    <textarea v-model="s.text" rows="12" placeholder="故事正文，换行会保留"></textarea>
+                  </div>
+                  <div v-if="!activeKidPreview.stories.length" class="empty muted">
+                    还没有故事，点右上「加故事」。
+                  </div>
+                </div>
+              </template>
+
+              <!-- 给宝宝信 -->
+              <template v-else-if="kidKind(activeKidPreview) === 'letter'">
+                <label><span>抬头</span><input v-model="activeKidPreview.letter.salute" /></label>
+                <h3 class="sh">正文段落</h3>
+                <div class="array-list">
+                  <div v-for="(p, i) in activeKidPreview.letter.paragraphs" :key="i" class="array-item">
+                    <textarea v-model="activeKidPreview.letter.paragraphs[i]" rows="2"></textarea>
+                    <button class="btn btn-x" @click="delLetterParagraph(i)" title="删除">×</button>
+                  </div>
+                </div>
+                <button class="btn btn-ghost" @click="addLetterParagraph">+ 加一段</button>
+                <label><span>落款</span><input v-model="activeKidPreview.letter.sign" /></label>
+              </template>
+
+              <!-- Markdown / 备注 -->
+              <div v-else class="editor-field">
+                <span class="field-label">正文 / 备注（Markdown）</span>
+                <AdminMarkdownEditor
+                  :key="activeKidPreview.id + '-md'"
+                  editor-id="admin-kid-md"
+                  v-model="activeKidPreview.content"
+                  placeholder="备用正文或给互动页的说明…"
+                />
+              </div>
             </div>
             <div v-else class="split-edit empty muted">选左边一份来编辑。</div>
           </div>
@@ -557,7 +559,7 @@ const dirtyCount = computed(() => {
           <div class="panel-hd">
             <h2>提交并发布</h2>
             <p class="muted">
-              当前共有 <strong>{{ dirtyCount }}</strong> 条内容条目（项目+工具+文章+Kids）。
+              当前共有 <strong>{{ dirtyCount }}</strong> 条内容条目（文章 + Kids）。
               改完之后按下面按钮一次性提交所有 JSON 到仓库，自动触发 Pages 重新部署。
             </p>
           </div>
@@ -569,7 +571,7 @@ const dirtyCount = computed(() => {
             </label>
             <div class="conn">
               <span class="ok" aria-hidden="true">●</span>
-              已连接：<code>{{ loginForm.owner }}/{{ loginForm.repo }}@{{ loginForm.branch }}</code>
+              已连接：<code>{{ repoConfig.owner }}/{{ repoConfig.repo }}@{{ repoConfig.branch }}</code>
             </div>
             <button class="btn btn-primary" :disabled="deploying" @click="doDeploy">
               {{ deploying ? '提交中…' : '⇧ 提交所有改动并发布' }}
@@ -725,7 +727,7 @@ textarea {
   border-radius: var(--radius);
   color: var(--mist);
   padding: 0.55rem 0.75rem;
-  font-family: var(--font-ui);
+  font-family: var(--font-body);
   font-size: 0.95rem;
   letter-spacing: 0;
   text-transform: none;
@@ -762,6 +764,13 @@ textarea:focus {
   color: var(--warm);
   font-family: var(--font-mono);
   font-size: 0.8rem;
+}
+.warn {
+  margin: 0;
+  color: var(--ice);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  opacity: 0.85;
 }
 .help {
   margin-top: 0.5rem;
@@ -912,26 +921,6 @@ textarea:focus {
   resize: vertical;
 }
 
-/* cards list (projects, tools) */
-.cards {
-  display: grid;
-  gap: 0.8rem;
-}
-.card2 {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: calc(var(--radius) + 2px);
-  background: rgba(255, 255, 255, 0.015);
-}
-.card2-hd {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-}
-.card2-hd .fill { flex: 1; }
 .tags-row {
   display: flex;
   flex-wrap: wrap;
@@ -1033,63 +1022,40 @@ textarea:focus {
   overflow: auto;
 }
 .split-edit .grow { flex: 1; }
-.md-ta {
-  line-height: 1.6;
-  font-size: 0.88rem;
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
 }
-.preview summary {
-  cursor: pointer;
+.field-label {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ice);
-  padding: 0.3rem 0;
 }
-.md-preview {
-  margin-top: 0.8rem;
-  padding: 1rem;
-  background: rgba(10, 14, 18, 0.55);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  line-height: 1.7;
-  max-height: 50vh;
-  overflow: auto;
+.story-list {
+  display: grid;
+  gap: 0.75rem;
 }
-.md-preview :deep(h1),
-.md-preview :deep(h2),
-.md-preview :deep(h3) {
-  font-family: var(--font-display);
-  letter-spacing: -0.02em;
-  margin: 1.2em 0 0.5em;
+.story-item {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem;
 }
-.md-preview :deep(p) { margin: 0 0 0.8rem; }
-.md-preview :deep(code) {
-  font-family: var(--font-mono);
-  font-size: 0.88em;
-  padding: 0.1em 0.35em;
-  background: rgba(127, 158, 168, 0.12);
-  border-radius: 3px;
-  color: var(--ice-bright);
+.story-hd {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
-.md-preview :deep(pre) {
-  padding: 0.8rem 1rem;
-  background: rgba(10, 14, 18, 0.6);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow-x: auto;
+.story-hd .fill {
+  flex: 1;
 }
-.md-preview :deep(pre code) {
-  background: none;
-  padding: 0;
-  color: var(--mist);
-}
-.md-preview :deep(blockquote) {
-  margin: 0.8rem 0;
-  padding: 0.4rem 0.8rem;
-  border-left: 2px solid var(--ice);
-  background: rgba(255, 255, 255, 0.02);
-  opacity: 0.9;
+.story-item textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 5rem;
 }
 .empty {
   padding: 1.4rem;
@@ -1164,22 +1130,32 @@ textarea:focus {
 @media (max-width: 960px) {
   .console {
     grid-template-columns: 1fr;
+    gap: 0.85rem;
   }
   .tabs {
     position: static;
     flex-direction: row;
     overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 0.2rem;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
   }
   .tab {
     flex-shrink: 0;
+    min-height: var(--touch);
   }
   .split {
     grid-template-columns: 1fr;
   }
-  .split-list,
+  .split-list {
+    max-height: 42vh;
+  }
   .split-edit {
     max-height: none;
+    padding: 0.85rem;
   }
   .form-grid {
     grid-template-columns: 1fr;
@@ -1199,6 +1175,81 @@ textarea:focus {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.8rem;
+  }
+  .hd {
+    align-items: flex-start;
+  }
+  .btn {
+    min-height: var(--touch);
+  }
+  .deploy-card .btn-primary {
+    align-self: stretch;
+    width: 100%;
+  }
+  .conn {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin {
+    padding-bottom: calc(3.75rem + var(--safe-bottom));
+  }
+
+  .console {
+    padding-bottom: 0;
+  }
+
+  .tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 0.15rem;
+    margin: 0;
+    padding:
+      0.35rem max(0.45rem, var(--safe-left))
+      calc(0.4rem + var(--safe-bottom))
+      max(0.45rem, var(--safe-right));
+    background: rgba(7, 9, 13, 0.96);
+    border-top: 1px solid var(--line);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .tab {
+    flex: 1;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.4rem 0.25rem;
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    text-align: center;
+    border-color: transparent;
+  }
+
+  .tab-ico {
+    width: auto;
+    font-size: 1rem;
+  }
+
+  .login-wrap {
+    max-width: none;
+  }
+
+  .login {
+    padding: 1.25rem;
+  }
+
+  .list-row {
+    padding: 0.85rem 0.65rem;
+  }
+
+  .lr-side .date {
+    display: none;
   }
 }
 </style>

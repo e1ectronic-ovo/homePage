@@ -2,26 +2,63 @@
  * 通过 GitHub Contents API 把修改后的 JSON 文件直接提交到仓库，
  * 触发 GitHub Pages workflow 自动重新部署。
  *
- * 使用方式：在 /admin 页面填 Personal Access Token + owner/repo + branch
+ * 仓库 owner/repo/branch 已写死在 config/github.js；
+ * 仅需在 /admin 填写 Personal Access Token。
  * Token 只存 localStorage，不传到任何第三方。
  */
 
-const STORAGE_KEY = 'gh_admin_config'
+import { GITHUB_REPO } from '../config/github'
 
-export function saveAdminConfig(cfg) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg))
+const TOKEN_KEY = 'gh_admin_token'
+
+export function getRepoConfig() {
+  return { ...GITHUB_REPO }
 }
-export function loadAdminConfig() {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return null
+
+export function saveAdminToken(token) {
+  if (token) localStorage.setItem(TOKEN_KEY, token)
+  else localStorage.removeItem(TOKEN_KEY)
+}
+
+export function loadAdminToken() {
+  const token = localStorage.getItem(TOKEN_KEY)
+  if (token) return token
+  // 迁移旧版整包配置
+  const raw = localStorage.getItem('gh_admin_config')
+  if (!raw) return ''
   try {
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
+    const cfg = JSON.parse(raw)
+    if (cfg?.token) {
+      saveAdminToken(cfg.token)
+      localStorage.removeItem('gh_admin_config')
+      return cfg.token
+    }
+  } catch {}
+  return ''
 }
+
+export function clearAdminToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+/** 合并写死的仓库配置与本地 Token */
+export function buildGithubConfig(token) {
+  return { ...GITHUB_REPO, token: token || loadAdminToken() }
+}
+
+/** @deprecated 兼容旧调用，仅保存 token */
+export function saveAdminConfig(cfg) {
+  saveAdminToken(cfg?.token)
+}
+
+export function loadAdminConfig() {
+  const token = loadAdminToken()
+  if (!token) return null
+  return buildGithubConfig(token)
+}
+
 export function clearAdminConfig() {
-  localStorage.removeItem(STORAGE_KEY)
+  clearAdminToken()
 }
 
 function apiBase(cfg) {

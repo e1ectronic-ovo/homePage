@@ -6,14 +6,22 @@ const route = useRoute()
 const clock = ref('--:--:--')
 let timer = 0
 
-function formatUtc(date) {
-  return date.toISOString().slice(11, 19)
+function formatChinaTime(date) {
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+  const pick = (type) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${pick('hour')}:${pick('minute')}:${pick('second')}`
 }
 
 onMounted(() => {
-  clock.value = formatUtc(new Date())
+  clock.value = formatChinaTime(new Date())
   timer = window.setInterval(() => {
-    clock.value = formatUtc(new Date())
+    clock.value = formatChinaTime(new Date())
   }, 1000)
 })
 
@@ -28,7 +36,7 @@ const channel = computed(() => route.meta.label || 'HOME')
 <template>
   <footer class="status">
     <span class="cell">
-      <em>UTC</em>
+      <em>CST+8</em>
       {{ clock }}
     </span>
     <span class="cell hide-sm">
@@ -106,7 +114,15 @@ const channel = computed(() => route.meta.label || 'HOME')
   }
 
   .status {
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
+    font-size: 0.6rem;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-bottom: calc(0.15rem + var(--safe-bottom));
+  }
+
+  .live {
+    font-size: 0.58rem;
   }
 }
 </style>

@@ -16,10 +16,9 @@ function formatDate(d) {
 
 <template>
   <section class="view-frame">
-    <p class="kicker"><span>04</span> Blog</p>
+    <p class="kicker"><span>02</span> Blog</p>
     <div class="intro">
       <h1>想法、笔记，和一些记录。</h1>
-      <p>想到什么写什么，不一定有营养，但一定是当时真实想过的。</p>
     </div>
 
     <ul v-if="sorted.length" class="list">
@@ -132,12 +131,29 @@ h1 {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
+
   .row {
-    grid-template-columns: 4rem 1fr;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+    padding: 1.1rem 0.15rem;
   }
+
+  .row:hover {
+    transform: none;
+  }
+
+  .date {
+    padding-top: 0;
+    font-size: 0.72rem;
+  }
+
+  .main strong {
+    font-size: 1.1rem;
+  }
+
   .meta {
-    grid-column: 2;
     justify-content: flex-start;
+    padding-top: 0.15rem;
   }
 }
 </style>
