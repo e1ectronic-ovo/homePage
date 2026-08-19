@@ -511,7 +511,11 @@ const dirtyCount = computed(() => posts.value.length + kids.value.length)
               </div>
               <div v-if="!kids.length" class="empty muted">点右上按钮加第一个。</div>
             </div>
-            <div v-if="activeKidPreview" class="split-edit">
+            <div
+              v-if="activeKidPreview"
+              class="split-edit"
+              :class="{ 'split-edit-stories': kidKind(activeKidPreview) === 'stories' }"
+            >
               <label><span>ID（URL 用）</span>
                 <input v-model="activeKidPreview.id" class="mono" />
               </label>
@@ -1098,6 +1102,16 @@ textarea:focus {
   max-height: 75vh;
   overflow: auto;
 }
+.split-edit.split-edit-stories {
+  overflow: hidden;
+}
+.split-edit.split-edit-stories .story-list.compact {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 .split-edit .grow { flex: 1; }
 .editor-field {
   display: flex;
@@ -1120,7 +1134,7 @@ textarea:focus {
   gap: 0;
   border: 1px solid var(--line);
   border-radius: calc(var(--radius) + 2px);
-  overflow: hidden;
+  overflow-x: hidden;
   background: rgba(255, 255, 255, 0.01);
 }
 .story-row {
@@ -1315,6 +1329,11 @@ textarea:focus {
   .split-edit {
     max-height: none;
     padding: 0.85rem;
+  }
+  .split-edit.split-edit-stories .story-list.compact {
+    flex: none;
+    max-height: 50vh;
+    overflow-y: auto;
   }
   .form-grid {
     grid-template-columns: 1fr;

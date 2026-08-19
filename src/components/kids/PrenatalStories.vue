@@ -31,7 +31,7 @@ function next() {
     <p class="hint">放慢语速，轻轻读。不用演，就像在身边说话。</p>
 
     <div v-if="stories.length" class="card panel">
-      <p class="card-kicker">{{ current.title }}</p>
+      <h2 class="card-title">{{ current.title }}</h2>
       <div class="card-body md" v-html="currentHtml"></div>
     </div>
     <div v-else class="empty panel muted">还没有故事，去后台添加吧。</div>
@@ -58,13 +58,14 @@ function next() {
 .card {
   padding: 1.5rem 1.35rem;
 }
-.card-kicker {
-  margin: 0 0 1rem;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ice);
+.card-title {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.45rem, 3.4vw, 1.85rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: rgba(235, 242, 246, 0.96);
 }
 .card-body {
   font-family: var(--font-display);
