@@ -119,7 +119,9 @@ img {
 input,
 textarea,
 select,
-button {
+button,
+pre,
+pre * {
   text-shadow: none;
 }
 

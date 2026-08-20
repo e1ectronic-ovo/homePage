@@ -1,1 +1,129 @@
 /* Page-level resets live in tokens.css */
+
+/* Shared markdown body styles (PostView, KidView, PrenatalStories) */
+.view-frame .body hr,
+.prenatal-stories .card-body hr {
+  height: 0;
+  margin: 1.8rem 0;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
+.view-frame .body .md-table-wrap,
+.prenatal-stories .card-body .md-table-wrap {
+  margin: 1.2rem 0;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.view-frame .body .md-table-wrap table,
+.prenatal-stories .card-body .md-table-wrap table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: min(100%, 28rem);
+}
+
+.view-frame .body th,
+.view-frame .body td,
+.prenatal-stories .card-body th,
+.prenatal-stories .card-body td {
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.view-frame .body th,
+.prenatal-stories .card-body th {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: rgba(200, 214, 220, 0.95);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.view-frame .body tr:nth-child(even),
+.prenatal-stories .card-body tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.view-frame .body ul.contains-task-list,
+.view-frame .body ol.contains-task-list,
+.prenatal-stories .card-body ul.contains-task-list,
+.prenatal-stories .card-body ol.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.view-frame .body .task-list-item,
+.prenatal-stories .card-body .task-list-item {
+  list-style: none;
+}
+
+.view-frame .body .task-list-item-checkbox,
+.prenatal-stories .card-body .task-list-item-checkbox {
+  margin-right: 0.45rem;
+  accent-color: var(--ice);
+}
+
+.view-frame .body img,
+.prenatal-stories .card-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.view-frame .body blockquote,
+.prenatal-stories .card-body blockquote {
+  margin: 1.2rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 2px solid var(--ice);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(200, 214, 220, 0.85);
+}
+
+.view-frame .body blockquote p,
+.prenatal-stories .card-body blockquote p {
+  margin: 0.5rem 0;
+}
+
+/* ASCII 架构图 / 代码块：CJK 等宽字体 + 保留空格，框线与中文对齐 */
+.view-frame .body pre,
+.prenatal-stories .card-body pre {
+  margin: 1.4rem 0;
+  padding: 1rem 1.2rem;
+  background: rgba(10, 14, 18, 0.72);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  line-height: 1.5;
+  tab-size: 4;
+  letter-spacing: 0;
+  text-shadow: none;
+  font-family: SarasaMonoCL-Regular, 'Sarasa Mono SC', 'JetBrains Mono', ui-monospace, monospace;
+  -webkit-font-smoothing: auto;
+  font-smooth: never;
+}
+
+.view-frame .body pre code,
+.prenatal-stories .card-body pre code {
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre;
+  word-break: normal;
+  word-wrap: normal;
+  letter-spacing: 0;
+  text-shadow: none;
+  background: none;
+  padding: 0;
+  color: var(--mist);
+  display: block;
+  min-width: max-content;
+}
+
+.view-frame .body code:not(pre code),
+.prenatal-stories .card-body code:not(pre code) {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.88em;
+  letter-spacing: 0;
+}

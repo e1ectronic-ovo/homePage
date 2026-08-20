@@ -84,7 +84,7 @@ h1 {
   border-radius: var(--radius);
 }
 .body {
-  max-width: 68ch;
+  max-width: min(72rem, 100%);
   font-size: 1.02rem;
   line-height: 1.8;
 }
@@ -126,26 +126,11 @@ h1 {
   color: rgba(200, 214, 220, 0.85);
   font-style: italic;
 }
-.body :deep(code) {
-  font-family: var(--font-mono);
-  font-size: 0.9em;
+.body :deep(code:not(pre code)) {
   padding: 0.1em 0.35em;
   background: rgba(127, 158, 168, 0.12);
   border-radius: 3px;
   color: var(--ice-bright);
-}
-.body :deep(pre) {
-  margin: 1.4rem 0;
-  padding: 1rem 1.2rem;
-  background: rgba(10, 14, 18, 0.6);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow-x: auto;
-}
-.body :deep(pre code) {
-  background: none;
-  padding: 0;
-  color: var(--mist);
 }
 .body :deep(a) {
   color: var(--ice-bright);
